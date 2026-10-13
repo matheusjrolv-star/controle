@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Financeira & Fundo de Continuidade</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                        accentBlue: '#38bdf8',
+                        accentEmerald: '#34d399',
+                        accentPurple: '#a78bfa'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            box-sizing: border-box;
+        }
+        /* Previne rolagem horizontal indesejada */
+        html, body {
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+    </style>
+</head>
+<body class="bg-darkBg text-slate-100 min-h-screen flex flex-col justify-between selection:bg-accentBlue selection:text-slate-900">
+
+    <header class="bg-cardBg border-b border-slate-800 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-accentBlue to-accentPurple p-2 rounded-xl text-slate-950 font-bold shadow-lg">
+                    <i class="fa-solid fa-chart-line text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight bg-gradient-to-r from-accentBlue via-indigo-300 to-accentEmerald bg-clip-text text-transparent">Nexus Finance</h1>
+                    <p class="text-xs text-slate-400">Gerenciamento Mensal & Fundo de Continuidade</p>
+                </div>
+            </div>
+
+            <!-- Indicador e Botão de Sincronização -->
+            <div class="flex items-center space-x-2 bg-slate-900/80 px-3 py-1.5 rounded-full border border-slate-700/60 text-xs">
+                <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="sync-status" class="text-slate-300 font-medium">Sincronizado</span>
+                <button onclick="manualSync()" title="Sincronizar Agora" class="ml-2 bg-slate-800 hover:bg-slate-700 text-accentBlue p-1.5 rounded-full transition duration-200">
+                    <i class="fa-solid fa-rotate"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navegação por Abas -->
+        <div class="max-w-7xl mx-auto px-4 flex space-x-1 sm:space-x-4 border-t border-slate-800/80 overflow-x-auto scrollbar-none">
+            <button onclick="switchTab('relatorio')" id="tab-btn-relatorio" class="py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 border-accentBlue text-accentBlue flex items-center space-x-2 transition whitespace-nowrap">
+                <i class="fa-solid fa-file-invoice-dollar"></i>
+                <span>Relatório de Uso</span>
+            </button>
+            <button onclick="switchTab('fundo')" id="tab-btn-fundo" class="py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition whitespace-nowrap">
+                <i class="fa-solid fa-vault"></i>
+                <span>Fundo de Continuidade</span>
+            </button>
+            <button onclick="switchTab('contratante')" id="tab-btn-contratante" class="py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition whitespace-nowrap">
+                <i class="fa-solid fa-lock" id="tab-lock-icon"></i>
+                <span>Área do Contratante</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6">
+
+        <!-- AB 1: RELATÓRIO DE USO -->
+        <section id="tab-relatorio" class="space-y-6">
+            <!-- Seletor de Mês e Setas de Navegação -->
+            <div class="bg-cardBg p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-start">
+                    <button onclick="changeMonth(-1)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-sm font-medium transition flex items-center space-x-1">
+                        <i class="fa-solid fa-chevron-left"></i>
+                        <span class="hidden sm:inline">Anterior</span>
+                    </button>
+                    <div class="text-center">
+                        <h2 id="current-month-display" class="text-lg sm:text-xl font-bold capitalize text-slate-100">Janeiro / 2026</h2>
+                        <span id="refusal-badge" class="hidden text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full border border-rose-500/30">Recusa Registrada no Mês</span>
+                    </div>
+                    <button onclick="changeMonth(1)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-sm font-medium transition flex items-center space-x-1">
+                        <span class="hidden sm:inline">Próximo</span>
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                    <button onclick="jumpToCurrentMonth()" class="text-xs bg-slate-800 hover:bg-slate-700 text-accentBlue px-3 py-2 rounded-xl border border-slate-700 transition">
+                        Mês Atual
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cards Resumo Financeiro Mensal -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-cardBg p-4 rounded-2xl border border-slate-800 shadow-lg relative overflow-hidden">
+                    <div class="absolute right-3 top-3 text-accentBlue/20 text-3xl"><i class="fa-solid fa-clock"></i></div>
+                    <p class="text-xs font-medium text-slate-400">Horas Consideradas</p>
+                    <h3 id="stat-horas-consideradas" class="text-2xl font-bold mt-1 text-slate-100">0.00h</h3>
+                    <p id="stat-horas-detalhe" class="text-[11px] text-slate-400 mt-1">Real: 0.00h | Presumidas: 0h</p>
+                </div>
+
+                <div class="bg-cardBg p-4 rounded-2xl border border-slate-800 shadow-lg relative overflow-hidden">
+                    <div class="absolute right-3 top-3 text-indigo-400/20 text-3xl"><i class="fa-solid fa-file-invoice"></i></div>
+                    <p class="text-xs font-medium text-slate-400">Produção Total Mensal</p>
+                    <h3 id="stat-producao-total" class="text-2xl font-bold mt-1 text-indigo-300">R$ 0,00</h3>
+                    <p class="text-[11px] text-slate-400 mt-1">Horas × Valor da Hora</p>
+                </div>
+
+                <div class="bg-cardBg p-4 rounded-2xl border border-slate-800 shadow-lg relative overflow-hidden">
+                    <div class="absolute right-3 top-3 text-emerald-400/20 text-3xl"><i class="fa-solid fa-wallet"></i></div>
+                    <p class="text-xs font-medium text-slate-400">Total a Receber (Fixo + 50% Excedente)</p>
+                    <h3 id="stat-total-receber" class="text-2xl font-bold mt-1 text-emerald-400">R$ 0,00</h3>
+                    <p id="stat-fixo-detalhe" class="text-[11px] text-slate-400 mt-1">Fixo: R$ 0,00</p>
+                </div>
+
+                <div class="bg-cardBg p-4 rounded-2xl border border-slate-800 shadow-lg relative overflow-hidden">
+                    <div class="absolute right-3 top-3 text-purple-400/20 text-3xl"><i class="fa-solid fa-piggy-bank"></i></div>
+                    <p class="text-xs font-medium text-slate-400">Destino Fundo (50% Excedente)</p>
+                    <h3 id="stat-fundo-deposito" class="text-2xl font-bold mt-1 text-accentPurple">R$ 0,00</h3>
+                    <p class="text-[11px] text-slate-400 mt-1">Acrescido no Fundo de Continuidade</p>
+                </div>
+            </div>
+
+            <!-- Tabela de Registros de Atividades do Mês -->
+            <div class="bg-cardBg rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-slate-800 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold text-base text-slate-100">Registros de Atividades e Relações</h3>
+                        <p class="text-xs text-slate-400">Histórico detalhado das horas trabalhadas no mês selecionado.</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                        <thead>
+                            <tr class="bg-slate-900/60 text-slate-400 border-b border-slate-800">
+                                <th class="p-3 font-semibold">Data / Início</th>
+                                <th class="p-3 font-semibold">Fim</th>
+                                <th class="p-3 font-semibold">Duração</th>
+                                <th class="p-3 font-semibold">Valor Gerado</th>
+                                <th class="p-3 font-semibold text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-table-body" class="divide-y divide-slate-800/60">
+                            <!-- Inserido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="no-logs-message" class="hidden p-8 text-center text-slate-500 text-sm">
+                    Nenhum registro encontrado para este mês.
+                </div>
+            </div>
+        </section>
+
+        <!-- AB 2: FUNDO DE CONTINUIDADE -->
+        <section id="tab-fundo" class="hidden space-y-6">
+            <div class="bg-gradient-to-r from-cardBg to-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="space-y-2 text-center md:text-left">
+                    <div class="inline-block bg-accentPurple/20 text-accentPurple text-xs px-3 py-1 rounded-full font-semibold border border-accentPurple/30">
+                        Patrimônio Acumulado com Juros Compostos
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-100" id="fundo-saldo-total">R$ 0,00</h2>
+                    <p class="text-xs sm:text-sm text-slate-400">Atualizado automaticamente a cada virada de mês válido com aplicação da taxa configurada + 50% dos excedentes.</p>
+                </div>
+                <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-center w-full md:w-auto min-w-[200px]">
+                    <span class="text-xs text-slate-400 block">Taxa de Juros Mensal Configurada</span>
+                    <span id="fundo-taxa-display" class="text-xl font-bold text-emerald-400 mt-1 block">0.00% a.m.</span>
+                </div>
+            </div>
+
+            <!-- Tabela Evolutiva do Fundo Mês a Mês -->
+            <div class="bg-cardBg rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-slate-800">
+                    <h3 class="font-bold text-base text-slate-100">Extrato Evolutivo Mensal do Fundo</h3>
+                    <p class="text-xs text-slate-400">Demonstrativo de juros aplicados e aportes provenientes dos excedentes.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                        <thead>
+                            <tr class="bg-slate-900/60 text-slate-400 border-b border-slate-800">
+                                <th class="p-3 font-semibold">Mês / Ano</th>
+                                <th class="p-3 font-semibold">Saldo Inicial</th>
+                                <th class="p-3 font-semibold">Juros do Mês</th>
+                                <th class="p-3 font-semibold">Aporte (50% Excedente)</th>
+                                <th class="p-3 font-semibold text-right">Saldo Final</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fundo-table-body" class="divide-y divide-slate-800/60">
+                            <!-- Inserido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="no-fundo-message" class="hidden p-8 text-center text-slate-500 text-sm">
+                    Nenhum histórico financeiro gerado até o momento.
+                </div>
+            </div>
+        </section>
+
+        <!-- AB 3: ÁREA DO CONTRATANTE -->
+        <section id="tab-contratante" class="hidden space-y-6">
+            <!-- Tela de Login (Caso não autenticado) -->
+            <div id="auth-container" class="max-w-md mx-auto bg-cardBg p-6 sm:p-8 rounded-2xl border border-slate-800 shadow-2xl mt-10">
+                <div class="text-center space-y-3 mb-6">
+                    <div class="bg-accentBlue/20 text-accentBlue w-12 h-12 rounded-2xl flex items-center justify-center mx-auto text-xl">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-100">Área Restrita do Contratante</h2>
+                    <p class="text-xs text-slate-400">Insira a senha de acesso para configurar parâmetros e gerenciar o cronômetro.</p>
+                </div>
+                <form onsubmit="handleLogin(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Senha de Acesso</label>
+                        <input type="password" id="login-password" placeholder="Digite a senha (ex: 2123)" required
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-accentBlue">
+                    </div>
+                    <button type="submit" class="w-full bg-gradient-to-r from-accentBlue to-indigo-500 text-slate-950 font-bold py-2.5 rounded-xl text-sm transition hover:opacity-90 shadow-lg">
+                        Entrar na Área Protegida
+                    </button>
+                    <p id="login-error" class="hidden text-xs text-rose-400 text-center">Senha incorreta. Tente novamente.</p>
+                </form>
+            </div>
+
+            <!-- Painel de Controle (Caso Autenticado) -->
+            <div id="admin-panel" class="hidden space-y-6">
+                <!-- Barra de Sessão e Deslogar -->
+                <div class="bg-cardBg p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-wrap justify-between items-center gap-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-3 h-3 rounded-full bg-emerald-400"></div>
+                        <span class="text-sm font-semibold text-slate-200">Sessão do Contratante Ativa</span>
+                    </div>
+                    <button onclick="handleLogout()" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs px-4 py-2 rounded-xl border border-rose-500/30 transition font-medium">
+                        <i class="fa-solid fa-right-from-bracket mr-1.5"></i> Sair da Área Restrita
+                    </button>
+                </div>
+
+                <!-- Cronômetro Ativo & Registro Manual -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Cronômetro de Relação -->
+                    <div class="bg-cardBg p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between space-y-4">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <h3 class="font-bold text-base text-slate-100 flex items-center space-x-2">
+                                    <i class="fa-solid fa-stopwatch text-accentBlue"></i>
+                                    <span>Cronômetro de Relação Ativa</span>
+                                </h3>
+                                <span id="timer-status-badge" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-medium">Inativo</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-1">Inicie e finalize o atendimento para registrar automaticamente no mês corrente.</p>
+                        </div>
+
+                        <div class="text-center py-6 bg-slate-900/60 rounded-xl border border-slate-800/80">
+                            <span id="timer-display" class="text-4xl sm:text-5xl font-extrabold font-mono tracking-wider text-accentBlue">00:00:00</span>
+                            <p id="timer-start-info" class="text-xs text-slate-400 mt-2">Iniciado em: --</p>
+                        </div>
+
+                        <div class="flex space-x-3">
+                            <button onclick="startTimer()" id="btn-start-timer" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition shadow-lg flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-play"></i>
+                                <span>Iniciar Relação</span>
+                            </button>
+                            <button onclick="stopTimer()" id="btn-stop-timer" disabled class="flex-1 bg-slate-800 text-slate-500 cursor-not-allowed font-bold py-3 rounded-xl text-sm transition flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-stop"></i>
+                                <span>Finalizar Relação</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Inclusão Manual de Registro -->
+                    <div class="bg-cardBg p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between space-y-4">
+                        <div>
+                            <h3 class="font-bold text-base text-slate-100 flex items-center space-x-2">
+                                <i class="fa-solid fa-pen-to-square text-accentPurple"></i>
+                                <span>Inclusão Manual de Horas</span>
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">Adicione registros passados informando data, hora de início e fim ou duração.</p>
+                        </div>
+
+                        <form onsubmit="handleManualAdd(event)" class="space-y-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Data do Atendimento</label>
+                                    <input type="date" id="manual-date" required
+                                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-accentBlue">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Duração (Horas Decimais)</label>
+                                    <input type="number" step="0.01" min="0.01" id="manual-hours" placeholder="Ex: 2.5" required
+                                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-accentBlue">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Início (Opcional)</label>
+                                    <input type="time" id="manual-start-time" value="09:00"
+                                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-accentBlue">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Fim (Opcional)</label>
+                                    <input type="time" id="manual-end-time" value="11:30"
+                                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-accentBlue">
+                                </div>
+                            </div>
+                            <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 text-accentPurple border border-slate-700 font-bold py-2.5 rounded-xl text-xs transition shadow">
+                                Adicionar Registro Manualmente
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Configurações Financeiras e Regras do Mês -->
+                <div class="bg-cardBg p-6 rounded-2xl border border-slate-800 shadow-xl space-y-6">
+                    <div>
+                        <h3 class="font-bold text-base text-slate-100 flex items-center space-x-2">
+                            <i class="fa-solid fa-sliders text-indigo-400"></i>
+                            <span>Configurações Financeiras Globais & Mensais</span>
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1">Defina os valores de remuneração, taxa de juros e controle de recusa para o mês selecionado (<span id="config-month-label" class="text-slate-200 font-semibold">Janeiro/2026</span>).</p>
+                    </div>
+
+                    <form onsubmit="handleSaveConfigs(event)" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Valor da Hora de Uso (R$)</label>
+                                <input type="number" step="0.01" min="0" id="cfg-hourly-rate" required
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-accentBlue">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Remuneração Mensal Fixa (R$)</label>
+                                <input type="number" step="0.01" min="0" id="cfg-monthly-fixed" required
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-accentBlue">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Horas Presumidas Mínimas</label>
+                                <input type="number" step="1" min="0" id="cfg-min-hours" required
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-accentBlue">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Taxa de Juros do Fundo (% a.m.)</label>
+                                <input type="number" step="0.01" min="0" id="cfg-interest-rate" required
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-accentBlue">
+                            </div>
+                        </div>
+
+                        <!-- Checkbox Recusa no Mês -->
+                        <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+                            <div>
+                                <label for="cfg-refusal" class="text-sm font-semibold text-slate-200 cursor-pointer">Recusa no Mês Selecionado</label>
+                                <p class="text-xs text-slate-400">Se marcado, o piso de horas presumidas não será aplicado neste mês (considera apenas as horas reais).</p>
+                            </div>
+                            <input type="checkbox" id="cfg-refusal" class="w-5 h-5 accent-accentBlue rounded cursor-pointer">
+                        </div>
+
+                        <div class="flex justify-end pt-2">
+                            <button type="submit" class="bg-gradient-to-r from-accentBlue to-indigo-500 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-sm transition hover:opacity-90 shadow-lg">
+                                Salvar Configurações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-cardBg border-t border-slate-800 py-4 text-center text-xs text-slate-500">
+        <p>Nexus Finance System &bull; Fundo de Continuidade & Sincronização Híbrida Multiplataforma</p>
+    </footer>
+
+    <!-- Custom Modal para Notificações (Sem alert()) -->
+    <div id="custom-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-cardBg border border-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
+            <div id="modal-icon" class="text-3xl text-accentBlue"><i class="fa-solid fa-circle-check"></i></div>
+            <h4 id="modal-title" class="text-base font-bold text-slate-100">Aviso</h4>
+            <p id="modal-message" class="text-xs text-slate-300">Mensagem do sistema.</p>
+            <button onclick="closeModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2 rounded-xl text-xs transition">
+                Entendido
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const JSONBIN_BIN_ID = '6acc53b3ffd5d1605362ff57';
+        const JSONBIN_MASTER_KEY = '$2a$10$7dVyC01WDjHJMWMUJIlfL.nhEeLVzYj29Efwck45r8on6hGiq20L6';
+
+        let state = {
+            authenticated: false,
+            currentYear: new Date().getFullYear(),
+            currentMonth: new Date().getMonth() + 1,
+            timerActive: false,
+            timerStartTime: null,
+            configs: {
+                hourlyRate: 150.00,
+                monthlyFixed: 3500.00,
+                minHours: 30,
+                interestRate: 1.00
+            },
+            monthlyData: {},
+            fundoHistory: []
+        };
+
+        window.onload = function() {
+            loadFromLocalStorage();
+            checkAuthPersistence();
+            fetchFromCloud(true);
+            
+            updateMonthDisplay();
+            renderRelatorio();
+            renderFundo();
+            loadConfigsToForm();
+            checkActiveTimerOnLoad();
+        };
+
+        function saveToLocalStorage() {
+            localStorage.setItem('nexus_finance_state', JSON.stringify({
+                authenticated: state.authenticated,
+                configs: state.configs,
+                monthlyData: state.monthlyData,
+                timerActive: state.timerActive,
+                timerStartTime: state.timerStartTime ? state.timerStartTime.toISOString() : null
+            }));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('nexus_finance_state');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state.authenticated = parsed.authenticated || false;
+                    state.configs = Object.assign(state.configs, parsed.configs || {});
+                    state.monthlyData = parsed.monthlyData || {};
+                    state.timerActive = parsed.timerActive || false;
+                    state.timerStartTime = parsed.timerStartTime ? new Date(parsed.timerStartTime) : null;
+                } catch (e) {
+                    console.error("Erro ao carregar do LocalStorage", e);
+                }
+            }
+        }
+
+        function updateSyncStatus(status, text) {
+            const dot = document.getElementById('sync-dot');
+            const txt = document.getElementById('sync-status');
+            txt.textContent = text;
+            if (status === 'syncing') {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+            } else if (status === 'synced') {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+            } else if (status === 'error') {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+            }
+        }
+
+        async function syncToCloud() {
+            updateSyncStatus('syncing', 'Salvando...');
+            const payload = {
+                configs: state.configs,
+                monthlyData: state.monthlyData,
+                updatedAt: new Date().toISOString()
+            };
+
+            try {
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_MASTER_KEY
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    updateSyncStatus('synced', 'Sincronizado');
+                } else {
+                    updateSyncStatus('error', 'Erro Cloud');
+                }
+            } catch (e) {
+                console.error("Falha na sincronização cloud:", e);
+                updateSyncStatus('synced', 'Modo Local');
+            }
+        }
+
+        async function fetchFromCloud(isStartup = false) {
+            if (!isStartup) updateSyncStatus('syncing', 'Atualizando...');
+            try {
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_MASTER_KEY
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.record) {
+                        if (data.record.configs) state.configs = Object.assign(state.configs, data.record.configs);
+                        if (data.record.monthlyData) {
+                            state.monthlyData = data.record.monthlyData;
+                        }
+                        saveToLocalStorage();
+                        updateMonthDisplay();
+                        renderRelatorio();
+                        renderFundo();
+                        loadConfigsToForm();
+                        updateSyncStatus('synced', 'Sincronizado');
+                    }
+                } else {
+                    if (!isStartup) updateSyncStatus('error', 'Erro ao Buscar');
+                }
+            } catch (e) {
+                console.error("Erro ao buscar da nuvem:", e);
+                if (!isStartup) updateSyncStatus('synced', 'Offline');
+            }
+        }
+
+        function manualSync() {
+            fetchFromCloud(false);
+        }
+
+        function switchTab(tabName) {
+            document.getElementById('tab-relatorio').classList.add('hidden');
+            document.getElementById('tab-fundo').classList.add('hidden');
+            document.getElementById('tab-contratante').classList.add('hidden');
+
+            document.getElementById('tab-btn-relatorio').className = 'py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition whitespace-nowrap';
+            document.getElementById('tab-btn-fundo').className = 'py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition whitespace-nowrap';
+            document.getElementById('tab-btn-contratante').className = 'py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition whitespace-nowrap';
+
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-btn-${tabName}`).className = 'py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 border-accentBlue text-accentBlue flex items-center space-x-2 transition whitespace-nowrap';
+
+            if (tabName === 'fundo') {
+                renderFundo();
+            }
+        }
+
+        function checkAuthPersistence() {
+            if (state.authenticated) {
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('admin-panel').classList.remove('hidden');
+                document.getElementById('tab-lock-icon').className = 'fa-solid fa-unlock text-emerald-400';
+            } else {
+                document.getElementById('auth-container').classList.remove('hidden');
+                document.getElementById('admin-panel').classList.add('hidden');
+                document.getElementById('tab-lock-icon').className = 'fa-solid fa-lock';
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const pass = document.getElementById('login-password').value;
+            if (pass === '2123') {
+                state.authenticated = true;
+                saveToLocalStorage();
+                checkAuthPersistence();
+                document.getElementById('login-error').classList.add('hidden');
+                document.getElementById('login-password').value = '';
+                showModal('Sucesso', 'Acesso autorizado à Área do Contratante.');
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        function handleLogout() {
+            state.authenticated = false;
+            saveToLocalStorage();
+            checkAuthPersistence();
+            switchTab('relatorio');
+            showModal('Sessão Encerrada', 'Você saiu da área restrita com sucesso.');
+        }
+
+        const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+        function changeMonth(direction) {
+            state.currentMonth += direction;
+            if (state.currentMonth > 12) {
+                state.currentMonth = 1;
+                state.currentYear++;
+            } else if (state.currentMonth < 1) {
+                state.currentMonth = 12;
+                state.currentYear--;
+            }
+            updateMonthDisplay();
+            renderRelatorio();
+            loadConfigsToForm();
+        }
+
+        function jumpToCurrentMonth() {
+            const now = new Date();
+            state.currentYear = now.getFullYear();
+            state.currentMonth = now.getMonth() + 1;
+            updateMonthDisplay();
+            renderRelatorio();
+            loadConfigsToForm();
+        }
+
+        function getMonthKey(year, month) {
+            return `${year}-${month}`;
+        }
+
+        function updateMonthDisplay() {
+            const label = `${monthNames[state.currentMonth - 1]} / ${state.currentYear}`;
+            document.getElementById('current-month-display').textContent = label;
+            document.getElementById('config-month-label').textContent = label;
+
+            const mKey = getMonthKey(state.currentYear, state.currentMonth);
+            const mData = state.monthlyData[mKey];
+            const badge = document.getElementById('refusal-badge');
+            if (mData && mData.refusal) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function getMonthData(year, month) {
+            const mKey = getMonthKey(year, month);
+            if (!state.monthlyData[mKey]) {
+                state.monthlyData[mKey] = { refusal: false, logs: [] };
+            }
+            return state.monthlyData[mKey];
+        }
+
+        function calculateMonthFinancials(year, month) {
+            const mData = getMonthData(year, month);
+            let totalRealHours = 0;
+            mData.logs.forEach(l => {
+                totalRealHours += l.durationHours;
+            });
+
+            const minHours = state.configs.minHours;
+            let consideredHours = totalRealHours;
+            if (!mData.refusal) {
+                consideredHours = Math.max(totalRealHours, minHours);
+            }
+
+            const productionTotal = consideredHours * state.configs.hourlyRate;
+            const fixed = state.configs.monthlyFixed;
+            let surplus = productionTotal - fixed;
+            let toReceive = fixed;
+            let fundoDeposit = 0;
+
+            if (surplus > 0) {
+                toReceive += surplus * 0.5;
+                fundoDeposit = surplus * 0.5;
+            }
+
+            return {
+                totalRealHours,
+                consideredHours,
+                productionTotal,
+                fixed,
+                surplus: surplus > 0 ? surplus : 0,
+                toReceive,
+                fundoDeposit,
+                refusal: mData.refusal,
+                logsCount: mData.logs.length
+            };
+        }
+
+        function renderRelatorio() {
+            const fin = calculateMonthFinancials(state.currentYear, state.currentMonth);
+
+            document.getElementById('stat-horas-consideradas').textContent = fin.consideredHours.toFixed(2) + 'h';
+            document.getElementById('stat-horas-detalhe').textContent = `Real: ${fin.totalRealHours.toFixed(2)}h | Presumidas: ${fin.refusal ? '0h (Recusa)' : state.configs.minHours + 'h'}`;
+            document.getElementById('stat-producao-total').textContent = formatCurrency(fin.productionTotal);
+            document.getElementById('stat-total-receber').textContent = formatCurrency(fin.toReceive);
+            document.getElementById('stat-fixo-detalhe').textContent = `Fixo: ${formatCurrency(fin.fixed)} ${fin.surplus > 0 ? '+ 50% Excedente' : ''}`;
+            document.getElementById('stat-fundo-deposito').textContent = formatCurrency(fin.fundoDeposit);
+
+            const mData = getMonthData(state.currentYear, state.currentMonth);
+            const tbody = document.getElementById('logs-table-body');
+            const noMsg = document.getElementById('no-logs-message');
+            tbody.innerHTML = '';
+
+            if (mData.logs.length === 0) {
+                noMsg.classList.remove('hidden');
+            } else {
+                noMsg.classList.add('hidden');
+                mData.logs.forEach((log, index) => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-900/40 transition';
+                    tr.innerHTML = `
+                        <td class="p-3 text-slate-200 font-medium">${formatDate(log.date)} ${log.startTime ? '('+log.startTime+')' : ''}</td>
+                        <td class="p-3 text-slate-400">${log.endTime || '--:--'}</td>
+                        <td class="p-3 font-mono text-accentBlue">${log.durationHours.toFixed(2)}h</td>
+                        <td class="p-3 font-semibold text-emerald-400">${formatCurrency(log.durationHours * state.configs.hourlyRate)}</td>
+                        <td class="p-3 text-right">
+                            <button onclick="deleteLog(${index})" class="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg hover:bg-rose-500/10 transition" title="Excluir Registro">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        function renderFundo() {
+            // Filtra e pega apenas meses que possuem registros válidos (> 0 logs) ordenados cronologicamente
+            const validKeys = Object.keys(state.monthlyData).filter(k => {
+                return state.monthlyData[k].logs && state.monthlyData[k].logs.length > 0;
+            }).sort();
+
+            const tbody = document.getElementById('fundo-table-body');
+            const noMsg = document.getElementById('no-fundo-message');
+            tbody.innerHTML = '';
+
+            let accumulatedSaldo = 0;
+            state.fundoHistory = [];
+
+            if (validKeys.length === 0) {
+                noMsg.classList.remove('hidden');
+                document.getElementById('fundo-saldo-total').textContent = formatCurrency(0);
+                document.getElementById('fundo-taxa-display').textContent = state.configs.interestRate.toFixed(2) + '% a.m.';
+                return;
+            }
+
+            noMsg.classList.add('hidden');
+
+            validKeys.forEach(k => {
+                const [y, m] = k.split('-').map(Number);
+                const fin = calculateMonthFinancials(y, m);
+                
+                const saldoInicial = accumulatedSaldo;
+                const jurosMes = saldoInicial * (state.configs.interestRate / 100);
+                const saldoComJuros = saldoInicial + jurosMes;
+                const aporte = fin.fundoDeposit;
+                const saldoFinal = saldoComJuros + aporte;
+
+                accumulatedSaldo = saldoFinal;
+
+                state.fundoHistory.push({
+                    key: k,
+                    year: y,
+                    month: m,
+                    saldoInicial,
+                    jurosMes,
+                    aporte,
+                    saldoFinal
+                });
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-900/40 transition';
+                tr.innerHTML = `
+                    <td class="p-3 font-semibold text-slate-200">${monthNames[m - 1]} / ${y}</td>
+                    <td class="p-3 text-slate-300">${formatCurrency(saldoInicial)}</td>
+                    <td class="p-3 text-emerald-400 font-medium">+ ${formatCurrency(jurosMes)}</td>
+                    <td class="p-3 text-accentPurple font-medium">+ ${formatCurrency(aporte)}</td>
+                    <td class="p-3 text-right font-bold text-slate-100">${formatCurrency(saldoFinal)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('fundo-saldo-total').textContent = formatCurrency(accumulatedSaldo);
+            document.getElementById('fundo-taxa-display').textContent = state.configs.interestRate.toFixed(2) + '% a.m.';
+        }
+
+        function startTimer() {
+            state.timerActive = true;
+            state.timerStartTime = new Date();
+            saveToLocalStorage();
+            
+            document.getElementById('btn-start-timer').disabled = true;
+            document.getElementById('btn-start-timer').className = 'flex-1 bg-slate-800 text-slate-500 cursor-not-allowed font-bold py-3 rounded-xl text-sm transition flex items-center justify-center space-x-2';
+            document.getElementById('btn-stop-timer').disabled = false;
+            document.getElementById('btn-stop-timer').className = 'flex-1 bg-rose-500 hover:bg-rose-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition shadow-lg flex items-center justify-center space-x-2';
+            
+            startTimerInterval();
+        }
+
+        function stopTimer() {
+            if (!state.timerActive || !state.timerStartTime) return;
+            
+            const endTime = new Date();
+            const startTime = new Date(state.timerStartTime);
+            const durationMs = endTime - startTime;
+            const durationHours = durationMs / (1000 * 60 * 60);
+
+            if (durationHours < 0.001) {
+                showModal('Aviso', 'A relação foi muito curta para ser registrada.');
+                resetTimerState();
+                return;
+            }
+
+            const year = startTime.getFullYear();
+            const month = startTime.getMonth() + 1;
+            const mData = getMonthData(year, month);
+
+            mData.logs.push({
+                date: startTime.toISOString().split('T')[0],
+                startTime: startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                endTime: endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                durationHours: parseFloat(durationHours.toFixed(4))
+            });
+
+            resetTimerState();
+            saveToLocalStorage();
+            syncToCloud();
+
+            state.currentYear = year;
+            state.currentMonth = month;
+            updateMonthDisplay();
+            renderRelatorio();
+            renderFundo();
+
+            showModal('Sucesso', `Relação finalizada! Duração: ${durationHours.toFixed(2)} horas registradas com sucesso.`);
+        }
+
+        function resetTimerState() {
+            state.timerActive = false;
+            state.timerStartTime = null;
+            if (window.timerIntervalRef) clearInterval(window.timerIntervalRef);
+            
+            document.getElementById('btn-start-timer').disabled = false;
+            document.getElementById('btn-start-timer').className = 'flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition shadow-lg flex items-center justify-center space-x-2';
+            document.getElementById('btn-stop-timer').disabled = true;
+            document.getElementById('btn-stop-timer').className = 'flex-1 bg-slate-800 text-slate-500 cursor-not-allowed font-bold py-3 rounded-xl text-sm transition flex items-center justify-center space-x-2';
+            
+            document.getElementById('timer-display').textContent = '00:00:00';
+            document.getElementById('timer-status-badge').textContent = 'Inativo';
+            document.getElementById('timer-status-badge').className = 'text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-medium';
+            document.getElementById('timer-start-info').textContent = 'Iniciado em: --';
+        }
+
+        function startTimerInterval() {
+            if (window.timerIntervalRef) clearInterval(window.timerIntervalRef);
+            document.getElementById('timer-status-badge').textContent = 'Em Andamento';
+            document.getElementById('timer-status-badge').className = 'text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-medium border border-emerald-500/30';
+            
+            const startStr = new Date(state.timerStartTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            document.getElementById('timer-start-info').textContent = `Iniciado em: ${startStr}`;
+
+            window.timerIntervalRef = setInterval(() => {
+                if (!state.timerStartTime) return;
+                const now = new Date();
+                const diff = now - new Date(state.timerStartTime);
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                document.getElementById('timer-display').textContent = 
+                    String(hours).padStart(2, '0') + ':' + 
+                    String(minutes).padStart(2, '0') + ':' + 
+                    String(seconds).padStart(2, '0');
+            }, 1000);
+        }
+
+        function checkActiveTimerOnLoad() {
+            if (state.timerActive && state.timerStartTime) {
+                startTimerInterval();
+                document.getElementById('btn-start-timer').disabled = true;
+                document.getElementById('btn-start-timer').className = 'flex-1 bg-slate-800 text-slate-500 cursor-not-allowed font-bold py-3 rounded-xl text-sm transition flex items-center justify-center space-x-2';
+                document.getElementById('btn-stop-timer').disabled = false;
+                document.getElementById('btn-stop-timer').className = 'flex-1 bg-rose-500 hover:bg-rose-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition shadow-lg flex items-center justify-center space-x-2';
+            }
+        }
+
+        function handleManualAdd(e) {
+            e.preventDefault();
+            const dateStr = document.getElementById('manual-date').value;
+            const hours = parseFloat(document.getElementById('manual-hours').value);
+            const startTime = document.getElementById('manual-start-time').value;
+            const endTime = document.getElementById('manual-end-time').value;
+
+            if (!dateStr || isNaN(hours) || hours <= 0) return;
+
+            const dateObj = new Date(dateStr + 'T00:00:00');
+            const year = dateObj.getFullYear();
+            const month = dateObj.getMonth() + 1;
+
+            const mData = getMonthData(year, month);
+            mData.logs.push({
+                date: dateStr,
+                startTime: startTime,
+                endTime: endTime,
+                durationHours: hours
+            });
+
+            saveToLocalStorage();
+            syncToCloud();
+
+            state.currentYear = year;
+            state.currentMonth = month;
+            updateMonthDisplay();
+            renderRelatorio();
+            renderFundo();
+
+            document.getElementById('manual-hours').value = '';
+            showModal('Sucesso', 'Registro manual adicionado com sucesso.');
+        }
+
+        function deleteLog(index) {
+            const mData = getMonthData(state.currentYear, state.currentMonth);
+            mData.logs.splice(index, 1);
+            saveToLocalStorage();
+            syncToCloud();
+            renderRelatorio();
+            renderFundo();
+        }
+
+        function loadConfigsToForm() {
+            document.getElementById('cfg-hourly-rate').value = state.configs.hourlyRate;
+            document.getElementById('cfg-monthly-fixed').value = state.configs.monthlyFixed;
+            document.getElementById('cfg-min-hours').value = state.configs.minHours;
+            document.getElementById('cfg-interest-rate').value = state.configs.interestRate;
+
+            const mData = getMonthData(state.currentYear, state.currentMonth);
+            document.getElementById('cfg-refusal').checked = mData.refusal;
+        }
+
+        function handleSaveConfigs(e) {
+            e.preventDefault();
+            state.configs.hourlyRate = parseFloat(document.getElementById('cfg-hourly-rate').value);
+            state.configs.monthlyFixed = parseFloat(document.getElementById('cfg-monthly-fixed').value);
+            state.configs.minHours = parseInt(document.getElementById('cfg-min-hours').value);
+            state.configs.interestRate = parseFloat(document.getElementById('cfg-interest-rate').value);
+
+            const mData = getMonthData(state.currentYear, state.currentMonth);
+            mData.refusal = document.getElementById('cfg-refusal').checked;
+
+            saveToLocalStorage();
+            syncToCloud();
+
+            updateMonthDisplay();
+            renderRelatorio();
+            renderFundo();
+
+            showModal('Configurações Salvas', 'Os parâmetros financeiros foram atualizados e sincronizados.');
+        }
+
+        function formatCurrency(val) {
+            return 'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return dateStr;
+        }
+
+        function showModal(title, message) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
