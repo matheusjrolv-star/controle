@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<!--
+PASSO A PASSO: no Supabase, abra SQL Editor e execute:
+
+create table banco_horas (id int primary key, dados jsonb not null default '{}');
+alter table banco_horas enable row level security;
+create policy "acesso" on banco_horas for all using (true) with check (true);
+insert into banco_horas (id) values (1);
+
+Depois preencha SUPABASE_URL e SUPABASE_KEY logo no inicio do <script>.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Banco de Horas</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#1c2430;--mu:#6b7686;--ac:#2563eb;--ok:#16a34a;--bad:#dc2626;--bd:#e3e6eb;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root{--bg:#12151b;--card:#1b2029;--tx:#e8ecf2;--mu:#8f9aab;--ac:#5b8def;--bd:#2a313d}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px system-ui,sans-serif}
+main{max-width:560px;margin:0 auto;padding:14px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+h1{font-size:20px;margin:0}h2{font-size:15px;margin:0 0 10px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.mu{color:var(--mu);font-size:13px}.big{font-size:30px;font-weight:700}
+.bar{height:14px;background:var(--bd);border-radius:8px;overflow:hidden;margin:6px 0 12px}
+.bar i{display:block;height:100%;background:var(--ac);transition:width .4s}
+button{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--ac);color:#fff;cursor:pointer}
+button.g{background:var(--ok)}button.r{background:var(--bad)}button.l{background:var(--bd);color:var(--tx)}
+input{font:inherit;padding:9px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);width:100%}
+.row{display:flex;gap:8px;margin-top:8px}.row>*{flex:1}
+.alert{background:#fee2e2;color:#7f1d1d;border:1px solid #fca5a5;border-radius:14px;padding:14px;margin-bottom:12px;font-weight:600}
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.nav button{padding:6px 14px}.li{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--bd);font-size:14px}
+body:not(.on) .adm{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<div class="top"><h1>Banco de Horas</h1><div><button id="lg" class="l"></button></div></div>
+<div class="mu" id="st" style="text-align:right;margin:-6px 0 8px"></div>
+<div id="al"></div>
+
+<div class="c">
+ <div id="clk"></div>
+ <div class="mu">Horas usadas no ciclo</div>
+ <div class="big" id="hu"></div>
+ <div class="bar"><i id="bh"></i></div>
+ <div class="mu" id="dl"></div>
+ <div class="bar"><i id="bd"></i></div>
+ <div class="mu">Próximo pagamento: <b id="np"></b></div>
+ <div class="row adm">
+  <button id="go" class="g"></button>
+  <button id="paid" class="l">Já foi pago</button>
+ </div>
+</div>
+
+<div class="c">
+ <h2>Banco acumulado e rescisão</h2>
+ <div class="mu">Total trabalhado desde o início</div><div class="big" id="tt"></div>
+ <div class="mu" id="rs"></div>
+</div>
+
+<div class="c adm">
+ <h2>Custo médio por hora (privado)</h2>
+ <div class="big" id="cm"></div><div class="mu" id="cmd"></div>
+</div>
+
+<div class="c">
+ <h2>Histórico de trabalhos</h2>
+ <div class="nav"><button class="l" onclick="mv('s',-1)">‹</button><b id="ms"></b><button class="l" onclick="mv('s',1)">›</button></div>
+ <div id="ls"></div>
+</div>
+
+<div class="c adm">
+ <h2>Histórico de gastos</h2>
+ <div class="nav"><button class="l" onclick="mv('e',-1)">‹</button><b id="me"></b><button class="l" onclick="mv('e',1)">›</button></div>
+ <div id="le"></div>
+ <div class="row"><input id="ed" placeholder="Descrição"><input id="ev" type="number" step="0.01" placeholder="Valor R$"></div>
+ <div class="row"><button onclick="addE()">Adicionar gasto</button></div>
+</div>
+
+<div class="c adm">
+ <h2>Próximo horário de trabalho</h2>
+ <div class="row"><input id="nx" type="datetime-local"></div>
+ <div class="row"><button onclick="setN()">Agendar alerta</button><button class="l" onclick="S.next=null;save();render()">Remover</button></div>
+</div>
+<div class="c adm">
+ <h2>Incluir horas manualmente</h2>
+ <div class="row"><input id="md" type="date"></div>
+ <div class="row"><input id="mh" type="number" min="0" placeholder="Horas"><input id="mm" type="number" min="0" max="59" placeholder="Minutos"></div>
+ <div class="row"><button onclick="addS()">Incluir horas</button></div>
+</div>
+<div class="c adm">
+ <h2>Configurações</h2>
+ <div class="mu">Data de início do acordo</div>
+ <div class="row"><input id="sd" type="date"><button onclick="setD()">Definir</button></div>
+ <div class="mu" style="margin-top:10px">Valor do pagamento (R$)</div>
+ <div class="row"><input id="cv" type="number"><button onclick="setC('rate','cv')">Salvar</button></div>
+ <div class="mu" style="margin-top:10px">Valor da rescisão por salário (R$)</div>
+ <div class="row"><input id="cr" type="number"><button onclick="setC('resc','cr')">Salvar</button></div>
+ <div class="mu" style="margin-top:10px">Horas trabalhadas para cada salário de rescisão</div>
+ <div class="row"><input id="cp" type="number"><button onclick="setC('per','cp')">Salvar</button></div>
+</div>
+</main>
+<script>
+/* ====== PREENCHA AQUI (Supabase > Project Settings > API) ====== */
+const SUPABASE_URL='https://tolovxlmzdfqegcceaea.supabase.co';
+const SUPABASE_KEY='sb_publishable_anG6eRfXl6_c7H3S9hqj7Q_tEOVRMfW';
+/* =============================================================== */
+var K='banco_horas_v1',H=36e5,D=864e5,PASS='2123';
+var S;try{S=JSON.parse(localStorage.getItem(K))}catch(e){}
+S=S||{start:null,rate:3000,days:30,hours:90,per:500,resc:3000,run:null,used:0,total:0,sess:[],exp:[],pay:[]};
+var adm=false;try{adm=localStorage.getItem('bh_admin')==='1'}catch(e){}
+var now0=new Date(),cur=now0.getFullYear()*12+now0.getMonth(),mon={s:cur,e:cur};
+function save(){S.v=Date.now();try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}push()}
+function $(i){return document.getElementById(i)}
+function brl(v){return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function hm(ms){var m=Math.floor(ms/6e4);return Math.floor(m/60)+'h'+String(m%60).padStart(2,'0')}
+function hms(ms){var s=Math.floor(ms/1000);return String(Math.floor(s/3600)).padStart(2,'0')+':'+String(Math.floor(s/60)%60).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function fd(t){return new Date(t).toLocaleDateString('pt-BR')}
+function fdt(t){return new Date(t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}
+function ym(t){var d=new Date(t);return d.getFullYear()*12+d.getMonth()}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function live(){return S.used+(S.run?Date.now()-S.run:0)}
+function due(){return S.start+S.days*D}
+function login(){
+ if(adm){adm=false;try{localStorage.removeItem('bh_admin')}catch(e){}}
+ else{var p=prompt('Senha do administrador:');if(p===PASS){adm=true;try{localStorage.setItem('bh_admin','1')}catch(e){}}else if(p!==null)alert('Senha incorreta.')}
+ render()}
+$('lg').onclick=login;
+$('go').onclick=function(){
+ if(!S.start){alert('Defina primeiro a data de início em Configurações.');return}
+ if(S.run){var n=Date.now(),ms=n-S.run;S.used+=ms;S.total+=ms;S.sess.push({s:S.run,e:n,ms:ms,c:S.start});S.run=null}
+ else{S.run=Date.now();S.next=null}
+ save();render()};
+$('paid').onclick=function(){
+ if(S.run){alert('Finalize o serviço em andamento antes de registrar o pagamento.');return}
+ if(!S.start)return;
+ var p=prompt('Digite a senha para confirmar o pagamento de '+brl(S.rate)+':');
+ if(p===null)return;if(p!==PASS){alert('Senha incorreta. Pagamento não registrado.');return}
+ var ex=Math.max(0,S.used-S.hours*H),n=Date.now();
+ S.pay.push({t:n,v:S.rate,ms:S.used});S.exp.push({t:n,d:'Pagamento da mesada',v:S.rate});S.start=n;S.used=ex;save();render()};
+function setN(){var v=$('nx').value;if(!v)return;S.next=new Date(v).getTime();save();render()}
+function addS(){if(!S.start)return alert('Defina primeiro a data de início.');var d=$('md').value,h=parseInt($('mh').value)||0,m=parseInt($('mm').value)||0,ms=(h*60+m)*6e4;if(!d||ms<=0)return alert('Informe a data e a duração.');var s=new Date(d+'T12:00:00').getTime();S.sess.push({s:s,e:s,ms:ms,man:true,c:S.start});S.used+=ms;S.total+=ms;$('mh').value=$('mm').value='';save();render()}
+function delS(i){var x=S.sess[i];if(!x||!confirm('Excluir este registro de '+hm(x.ms)+'?'))return;var inC=x.c!==undefined?x.c===S.start:x.s>=S.start;if(inC)S.used=Math.max(0,S.used-x.ms);S.total=Math.max(0,S.total-x.ms);S.sess.splice(i,1);save();render()}
+function mv(k,d){mon[k]+=d;render()}
+function addE(){var d=$('ed').value.trim(),v=parseFloat($('ev').value);if(!d||!(v>0))return alert('Informe descrição e valor.');S.exp.push({t:Date.now(),d:d,v:v});$('ed').value=$('ev').value='';save();render()}
+function delE(i){if(confirm('Excluir este gasto?')){S.exp.splice(i,1);save();render()}}
+function setD(){var v=$('sd').value;if(!v)return;S.start=new Date(v+'T00:00:00').getTime();save();render()}
+function setC(k,id){var v=parseFloat($(id).value);if(v>0){S[k]=v;save();render()}}
+function mlabel(m){return new Date(Math.floor(m/12),m%12,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}
+function render(){
+ document.body.className=adm?'on':'';$('lg').textContent=adm?'Sair':'Entrar';
+ $('clk').innerHTML=S.run?'<div class="mu">Contando desde '+fdt(S.run)+'</div><div class="big" style="color:var(--ok);margin-bottom:12px">'+hms(Date.now()-S.run)+'</div>':'<div class="mu" style="margin-bottom:12px">Nenhum serviço em andamento: o tempo não está sendo contado.</div>';
+ var u=live(),lim=S.hours*H,hp=Math.min(100,u/lim*100);
+ $('hu').textContent=hm(u)+' / '+S.hours+'h';$('bh').style.width=hp+'%';
+ var late=false,over=u>=lim;
+ if(S.start){
+  var el=Date.now()-S.start,dp=Math.min(100,el/(S.days*D)*100),left=Math.max(0,Math.ceil((due()-Date.now())/D));
+  $('dl').textContent='Dias: '+Math.min(S.days,Math.floor(el/D))+' de '+S.days+' ('+left+' restantes)';$('bd').style.width=dp+'%';
+  late=Date.now()>=due();
+  $('np').textContent=over?'hoje (horas esgotadas)':fd(due())+(late?' (vencido)':'')
+ }else{$('dl').textContent='Defina a data de início';$('bd').style.width='0';$('np').textContent='—'}
+ $('al').innerHTML=(S.next&&!S.run?'<div class="alert" style="background:#dbeafe;color:#1e3a8a;border-color:#93c5fd">📅 Próximo horário de trabalho: '+fdt(S.next)+(S.next<Date.now()?' (já passou)':'')+'</div>':'')+(S.run?'<div class="alert" style="background:#fef3c7;color:#78350f;border-color:#fcd34d">⏱ Serviço em andamento: o tempo está sendo contado agora. Se foi sem querer, finalize o serviço.</div>':'')+((S.start&&(over||late))?'<div class="alert">⚠ Efetue novo pagamento: '+brl(S.rate)+(over&&u>lim?'<div class="mu" style="font-weight:400">Excedente de '+hm(u-lim)+' será descontado do próximo ciclo.</div>':'')+'</div>':'');
+ $('go').textContent=S.run?'Finalizar serviço':'Iniciar serviço';$('go').className=S.run?'r':'g';
+ var tt=S.total+(S.run?Date.now()-S.run:0),n=Math.floor(tt/H/S.per);
+ $('tt').textContent=hm(tt);
+ $('rs').textContent='Rescisão atual: '+brl(n*S.resc)+' ('+n+' × '+brl(S.resc)+'). Faltam '+hm(((n+1)*S.per*H)-tt)+' para o próximo salário.';
+ var ge=S.exp.reduce(function(a,x){return a+x.v},0);
+ $('cm').textContent=tt>0?brl(ge/(tt/H))+' /h':'—';$('cmd').textContent='Gastos: '+brl(ge)+' ÷ '+hm(tt);
+ $('ms').textContent=mlabel(mon.s);$('me').textContent=mlabel(mon.e);
+ var b2='';S.sess.forEach(function(x,i){if(ym(x.e)===mon.s)b2='<div class="li"><span>'+(x.man?'✎ '+fd(x.s)+' (manual)':fdt(x.s)+' → '+fdt(x.e))+'</span><span><b>'+hm(x.ms)+'</b>'+(adm?' <a href="#" onclick="delS('+i+');return false" style="color:var(--bad)">✕</a>':'')+'</span></div>'+b2});
+ $('ls').innerHTML=b2?b2:'<div class="mu">Nenhum trabalho neste mês.</div>';
+ if(adm){
+  var b='',tot=0;S.exp.forEach(function(x,i){if(ym(x.t)===mon.e){tot+=x.v;b='<div class="li"><span>'+fd(x.t)+' · '+esc(x.d)+'</span><span>'+brl(x.v)+' <a href="#" onclick="delE('+i+');return false" style="color:var(--bad)">✕</a></span></div>'+b}});
+  $('le').innerHTML=(b||'<div class="mu">Nenhum gasto neste mês.</div>')+(tot?'<div class="li"><b>Total do mês</b><b>'+brl(tot)+'</b></div>':'');
+  if(document.activeElement.id!=='cv'&&document.activeElement.id!=='cr'&&!$('cv').value){$('cv').value=S.rate;$('cr').value=S.resc;$('cp').value=S.per}
+ }}
+var API=SUPABASE_URL+'/rest/v1/banco_horas',HD={apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'};
+var cfgOk=SUPABASE_URL.indexOf('https://')===0&&SUPABASE_KEY.length>40,ready=false;
+function status(t,ok){$('st').textContent=t;$('st').style.color=ok?'var(--ok)':'var(--bad)'}
+function push(){if(!cfgOk||!ready)return;
+ fetch(API+'?on_conflict=id',{method:'POST',headers:Object.assign({},HD,{Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({id:1,dados:S})})
+ .then(function(r){status(r.ok?'\u25cf Sincronizado':'\u25cf Erro ao salvar',r.ok)}).catch(function(){status('\u25cf Sem conex\u00e3o',false)})}
+function pull(){if(!cfgOk)return;
+ fetch(API+'?id=eq.1&select=dados',{headers:HD}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(rows){
+  var R=rows[0]&&rows[0].dados;
+  if(R&&R.v&&R.v>(S.v||0)){S=Object.assign({start:null,rate:3000,days:30,hours:90,per:500,resc:3000,run:null,used:0,total:0,sess:[],exp:[],pay:[]},R);try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}render()}
+  var first=!ready;ready=true;
+  if(!R||!R.v||(S.v||0)>R.v){if(first&&!S.v)S.v=Date.now();push()}else status('\u25cf Sincronizado',true)
+ }).catch(function(){status('\u25cf Sem conex\u00e3o',false)})}
+if(cfgOk){status('\u25cf Conectando...',true);pull();setInterval(pull,8000)}else status('\u25cf Configure a URL e a chave no c\u00f3digo',false);
+render();setInterval(render,1000);
+</script>
+</body>
+</html>
